@@ -1,0 +1,29 @@
+# dependencies and build output
+node_modules
+dist
+*.tsbuildinfo
+coverage
+
+# secrets and local config
+.env
+.env.*
+!.env.example
+*.pw
+*.pem
+*.key
+*.pfx
+
+# local app data and test artifacts
+.quarry/
+.quarry-dev/
+*.log
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local assistant instructions (contain machine paths and internal project notes)
+CLAUDE.md
+.claude/
