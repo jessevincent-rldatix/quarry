@@ -34,7 +34,7 @@ const DEFAULT_SECURITY: Record<Dialect, Record<Security, boolean>> = {
 const ENCRYPT = 'Encrypt the connection'
 const TRUST = 'Trust the server certificate'
 
-const blank = (): ConnectionInput => ({ id: uid(), name: '', dialect: 'mssql', host: '127.0.0.1', readOnly: true, ...DEFAULT_SECURITY.mssql, savePassword: false })
+const blank = (): ConnectionInput => ({ id: uid(), name: '', dialect: 'mssql', host: '127.0.0.1', readOnly: true, ...DEFAULT_SECURITY.mssql, savePassword: true })
 
 /** For a failure that one of the two security boxes would fix, says which box. The databases' own messages do not. */
 function securityHint(message: string, form: ConnectionInput): string | undefined {

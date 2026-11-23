@@ -59,6 +59,9 @@ interface PgFields { fields: { name: string; dataTypeID: number }[] }
 
 type PgFinal = Partial<PgFields> & { command?: string; rowCount?: number | null }
 
+/** The server asked for a password and Quarry holds none: it was not saved, and the server has restarted since it was typed. */
+export const NO_PASSWORD = 'The server asked for a password and Quarry is not holding one for this connection. Open Connections and enter it again; tick "Remember the password" to keep it across restarts.'
+
 export async function postgresDriver(config: ConnectionConfig, password: string): Promise<Driver> {
   const pg = (await import('pg')).default
   // Values are shown as the text the server sent: exact decimals, dates without a timezone shift,
@@ -91,7 +94,14 @@ export async function postgresDriver(config: ConnectionConfig, password: string)
   pool.on('error', () => undefined)
   // The same goes for one that fails while a run has it checked out.
   pool.on('connect', (client) => { client.on('error', () => undefined) })
-  await (await pool.connect()).release()
+  try {
+    (await pool.connect()).release()
+  } catch (err) {
+    void pool.end().catch(() => undefined)
+    // The library's own words for this ("SASL: … client password must be a string") do not say what to do.
+    if (/client password must be a/i.test(message(err))) throw new Error(NO_PASSWORD)
+    throw err
+  }
 
   // Types the server had to be asked about: extensions, enums and anything else defined in this database.
   const looked = new Map<number, PgType>()

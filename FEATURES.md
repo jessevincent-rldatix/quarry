@@ -30,7 +30,7 @@ A running record. Features first, then what each review round changed. For how t
 - "Replace query" on SQL in an answer swaps the whole query in the open tab for it, as one edit that `Ctrl Z` undoes.
 
 **Voice: "Hey Seven of Nine" (the microphone in the header)**
-- Switch it on, say "Hey Seven of Nine" and then what you want: "Hey Seven of Nine, add a limit of ten rows to this query", "Hey Seven of Nine, open the refund audit". The request goes to Ask with the query in the open tab. You can also say the phrase, wait for "Listening…", and then speak; it waits 8 seconds.
+- Switch it on, say "Hey Seven of Nine" and then what you want: "Hey Seven of Nine, add a limit of ten rows to this query", "Hey Seven of Nine, open the refund audit". The request goes to Ask with the query in the open tab. You can also say the phrase, pause, and then speak; it waits 8 seconds, and you do not have to wait for "Listening…" first: a request started while the phrase is still being checked is kept.
 - The phrase is three everyday words on purpose: every speech model writes them correctly ("seven of nine", "7 of 9"). "Hey Quarry", the first phrase, is still answered, but "Quarry" is a rare word that the on-device model misspells, so it misses more often.
 - Ask opens as soon as the phrase is heard, usually within a second, while you are still talking, and your words appear there as Deepgram writes them down (they arrive about once a second). When you stop, the request is written down once more from the whole recording, which is the more accurate of the two, and that is what Ask gets.
 - A wake is checked twice. The on-device model decides quickly, and the accurate transcript must also start with the phrase or the request is dropped and Ask closes again. Speech the on-device model is unsure about ("Seven of nine, open…" with no "hey") is sent to Deepgram to decide, and nothing shows unless it agrees.
@@ -117,7 +117,7 @@ A running record. Features first, then what each review round changed. For how t
 - Paste a connection string and the fields fill in; the pasted text, password included, is then cleared from the box.
 - A connection can have a colour (red, amber, green, blue, violet) to mark a database that needs care. It tints that connection's tabs, the Run button (which then reads "Run on <name>") and the connection button in the header.
 - New connections start with the usual settings for their database (encryption on for SQL Server, off for PostgreSQL and MySQL). When a test fails over SSL or a certificate, the message names the box to change. A connection that failed its test is saved but marked "Saved, not working yet".
-- Passwords stay in memory unless "Remember the password" is ticked.
+- "Remember the password" is ticked for a new connection, and stores it encrypted. Unticked, the password stays in memory and is gone after a restart; the error then says to enter it again.
 - Read-only connections refuse anything that could change data (on Postgres and MySQL this is also enforced by the database). On SQL Server that includes `NEXT VALUE FOR`, which moves a sequence on even inside a rolled-back transaction.
 - On writable connections, UPDATE or DELETE with no WHERE, DROP and TRUNCATE ask first. The server checks this as well as the page, so nothing reaches the database without the question having been answered.
 - Every run gets a clean session: a transaction left open is rolled back (with a message saying so), and `USE` or `SET` from one run does not carry into the next.

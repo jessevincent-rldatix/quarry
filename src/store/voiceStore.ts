@@ -75,6 +75,10 @@ let phraseDue = true
 let openedAsk = false
 /** Recorded speech is being fed in, so the microphone is not mixed into it. */
 let feeding = false
+/** The accurate transcript of the wake phrase is on its way; the person may already be saying the request. */
+let confirming = false
+/** A stretch of speech that started and ended while the phrase was being confirmed. */
+let meanwhile: Float32Array | null = null
 
 const remember = (on: boolean) => { try { localStorage.setItem(REMEMBER_KEY, on ? '1' : '0') } catch { /* private mode: just not remembered */ } }
 const remembered = () => { try { return localStorage.getItem(REMEMBER_KEY) === '1' } catch { return false } }
@@ -84,6 +88,8 @@ const askReady = () => Boolean(useStore.getState().ai?.configured)
 
 export const useVoice = create<VoiceState>((set, get) => {
   const listening = () => get().phase === 'waiting' || get().phase === 'hearing'
+  /** Speech is kept while a request is being worked on too: after the phrase and a pause, the request often starts before the phrase is confirmed. */
+  const recording = () => listening() || get().phase === 'working'
 
   /** Whether the on-device model heard the wake phrase. What it heard is kept, which is how a missed or false wake is explained. */
   const wakes = (text: string) => {
@@ -104,10 +110,16 @@ export const useVoice = create<VoiceState>((set, get) => {
     app.set({ askOpen: true })
   }
 
-  const awaitRequest = () => {
+  const awaitRequest = (said: Float32Array | null = null) => {
     clearTimeout(followUp)
     set({ phase: 'hearing', heard: '' })
     followUp = setTimeout(() => { if (get().phase === 'hearing' && !live) set({ phase: 'waiting' }) }, FOLLOW_UP_MS)
+    // The request may have been started, or even finished, while the phrase was being checked.
+    if (stretch) goLive()
+    else if (said) {
+      phraseDue = false
+      void finish(said).catch(fail)
+    }
   }
 
   /** The wake phrase was heard: show Ask straight away and start writing down what is being said. */
@@ -132,8 +144,17 @@ export const useVoice = create<VoiceState>((set, get) => {
     clearTimeout(followUp)
     dropLive()
     set({ phase: 'working', error: '' })
-    // The words shown so far were quick ones. The request is written down again from the whole recording, which is more accurate.
-    const { text } = await api.transcribe(toBase64(encodeWav(audio, SAMPLE_RATE)))
+    meanwhile = null
+    confirming = true
+    let text: string
+    try {
+      // The words shown so far were quick ones. The request is written down again from the whole recording, which is more accurate.
+      text = (await api.transcribe(toBase64(encodeWav(audio, SAMPLE_RATE)))).text
+    } finally {
+      confirming = false
+    }
+    const said = meanwhile
+    meanwhile = null
     if (get().phase !== 'working') return
     // The on-device model is easily fooled, so the accurate transcript has to start with the phrase too.
     if (phraseDue && !matchWake(text)) {
@@ -145,7 +166,7 @@ export const useVoice = create<VoiceState>((set, get) => {
     useStore.getState().set({ askOpen: true })
     const request = commandFrom(text)
     // The wake phrase and then nothing: keep the floor open for the request.
-    if (!request) return awaitRequest()
+    if (!request) return awaitRequest(said)
     set({ lastRequest: request })
     const app = useStore.getState()
     const tab = app.tabs.find((t) => t.id === app.activeTabId)
@@ -163,7 +184,7 @@ export const useVoice = create<VoiceState>((set, get) => {
   }
 
   const speechStart = () => {
-    if (!listening()) return
+    if (!recording()) return
     stretch = recent
     stretchLength = recentLength
     recent = []
@@ -175,7 +196,7 @@ export const useVoice = create<VoiceState>((set, get) => {
   }
 
   const sound = (piece: Float32Array) => {
-    if (!listening()) return
+    if (!recording()) return
     if (!stretch) {
       recent.push(piece)
       recentLength += piece.length
@@ -211,6 +232,7 @@ export const useVoice = create<VoiceState>((set, get) => {
     stretch = null
     stretchLength = 0
     stretchId++
+    if (audio && confirming && get().phase === 'working') meanwhile = audio
     if (!audio || !listening()) return
     try {
       if (live) return await finish(audio)
@@ -242,6 +264,7 @@ export const useVoice = create<VoiceState>((set, get) => {
     stretch = null
     stretchLength = 0
     stretchId++
+    meanwhile = null
   }
 
   return {
